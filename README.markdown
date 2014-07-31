@@ -8,7 +8,7 @@ The development environment is a simple Node.js server managed by Yeoman. If you
 install these tools first:
 
 * [Node](http://nodejs.org/download/)
-* [Yeoman](http://yeoman.io/gettingstarted.html)
+* [Yeoman](http://yeoman.io/learning/)
 
 
 ## Running
@@ -17,7 +17,7 @@ To install required Bower components and Node modules, simply type:
     $ bower install
     $ npm install
 
-Next you will need your client ID and client secret from developer.nest.com/clients set as environment variables:
+You will need to set your redirect URI in <developer.nest.com/clients/> to 'http://localhost:8080/auth/nest/callback' and grab your your client ID and client secret and set them as environment variables:
 
     $ export NEST_ID=<CLIENT ID>
     $ export NEST_SECRET=<CLIENT SECRET>
@@ -26,7 +26,7 @@ And finally, use Grunt to start the server:
 
     $ grunt
 
-Then open http://localhost:8080 in your browser and you will be walked through the authentication process.
+Then open <http://localhost:8080> in your browser and you will be walked through the authentication process.
 
 ## License
 Copyright 2014 Nest Labs Inc. All Rights Reserved.

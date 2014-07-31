@@ -17,8 +17,7 @@
 'use strict';
 
 var nestToken     = $.cookie('nest_token'),
-    smokeCOAlarms = [],
-    isFirstRun    = true;
+    smokeCOAlarms = [];
 
 if (nestToken) { // Simple check for token
 
@@ -29,15 +28,30 @@ if (nestToken) { // Simple check for token
   // in a production client we would want to
   // handle auth errors here.
 
-  // If an alarm goes off, we want to push a notification from the background
-  if (window.Notification && window.Notification.permission === 'default') {
-    window.Notification.requestPermission();
-  }
-
+  // Request on launch since an event may not happen for a while
+  Notification.requestPermission();
 } else {
   // No auth token, go get one
-  // window.location.replace('/auth/nest');
+  window.location.replace('/auth/nest');
 }
+
+
+/**
+  Send out a notification and also log
+  to the UI.
+
+*/
+function notify(title, options) {
+  var notification = $('<li>');
+  notification.css({color: options.color});
+  notification.append(title, ': ', options.body);
+  $('#log').append(notification);
+  Notification.requestPermission(function() {
+    var notification = new Notification(title, options);
+  });
+}
+
+
 
 /**
   Listen for CO alarms and alert the user
@@ -47,24 +61,24 @@ if (nestToken) { // Simple check for token
 function listenForSmokeAlarms(alarm) {
   var alarmState;
 
-  alarm.child('smoke_alarm_state').on('change', function (state) {
-    // Get the latest alarm data
-    var alarm = state.parent().val();
+  alarm.child('smoke_alarm_state').ref().on('value', function (state) {
 
     switch (state.val()) {
     case 'warning':
       if (alarmState !== 'warning') { // only alert the first change
-        new Notification('Heads Up', {
-          tag: alarm.device_id + 'smoke_alarm_state-warning',
-          body: 'Smoke has been detected by ' + alarm.name_long
+        notify('Heads Up', {
+          tag: alarm.child('device_id').val() + 'smoke_alarm_state',
+          body: 'Smoke has been detected by ' + alarm.child('name_long').val(),
+          color: alarm.child('ui_color_state').val()
         });
       }
       break;
     case 'emergency':
       if (alarmState !== 'emergency') { // only alert the first change
-        new Notification('Emergency', {
-          tag: alarm.device_id + 'smoke_alarm_state-warning',
-          body: 'Smoke has been detected by ' + alarm.name_long
+        notify('Emergency', {
+          tag: alarm.child('device_id').val() + 'smoke_alarm_state',
+          body: 'Smoke has been detected by ' + alarm.child('name_long').val(),
+          color: alarm.child('ui_color_state').val()
         });
       }
       break;
@@ -81,24 +95,24 @@ function listenForSmokeAlarms(alarm) {
 */
 function listenForCOAlarms(alarm) {
   var alarmState;
-  alarm.child('co_alarm_state').on('change', function (state) {
-    // Get the latest alarm data
-    var alarm = state.parent().val();
 
+  alarm.child('co_alarm_state').ref().on('value', function (state) {
     switch (state.val()) {
     case 'warning':
       if (alarmState !== 'warning') { // only alert the first change
-        new Notification('Heads Up', {
-          tag: alarm.device_id + 'co_alarm_state-warning',
-          body: 'CO has been detected by ' + alarm.name_long
+        notify('Heads Up', {
+          tag: alarm.child('device_id').val() + '-co_alarm_state',
+          body: 'CO has been detected by ' + alarm.child('name_long').val(),
+          color: alarm.child('ui_color_state').val()
         });
       }
       break;
     case 'emergency':
       if (alarmState !== 'emergency') { // only alert the first change
-        new Notification('Emergency', {
-          tag: alarm.device_id + 'co_alarm_state-warning',
-          body: 'CO has been detected by ' + alarm.name_long
+        notify('Emergency', {
+          tag: alarm.child('device_id').val() + '-co_alarm_state',
+          body: 'CO has been detected by ' + alarm.child('name_long').val(),
+          color: alarm.child('ui_color_state').val()
         });
       }
       break;
@@ -112,18 +126,17 @@ function listenForCOAlarms(alarm) {
 
 */
 function listenForBatteryAlarms(alarm) {
-  alarm.child('battry_health').on('change', function (state) {
-    // Get the latest alarm data
-    var alarm = state.parent().val();
+  alarm.child('battry_health').ref().on('value', function (state) {
 
-    // Don't show battery alerts if a more important alert
-    // is already showing
+    // Don't show battery alerts if a more
+    // important alert is already showing
     if ( state.val() === 'replace' &&
          alarm.smoke_alarm_state === 'ok' &&
          alarm.co_alarm_state === 'ok') {
-      new Notification('Replace battery', {
-        tag: alarm.device_id + 'battry_health',
-        body: 'The battery is low on ' + alarm.name_long
+      notify('Replace battery', {
+        tag: alarm.child('device_id').val() + '-battry_health',
+        body: 'The battery is low on ' + alarm.child('name_long').val(),
+        color: alarm.child('ui_color_state').val()
       });
     }
   });
@@ -133,22 +146,19 @@ function listenForBatteryAlarms(alarm) {
   Start listening for changes on this account,
   update appropriate views as data changes.
 
-  If it is the first run, also setup listeners
-  for alarm notifications
+  Note: this will only work in browsers that support notifications
+  See http://caniuse.com/notifications for a current list.
 
 */
-dataRef.on('value', function (snapshot) {
-  smokeCOAlarms = snapshot.val().devices.smoke_co_alarms;
-
-  for(var id in smokeCOAlarms) {
-
-    if (isFirstRun && window.Notification && window.Notification.permission === 'granted') {
-      var alarm = snapshot.child('/devices/smoke_co_alarms/' + id);
+if ('Notification' in window) {
+  dataRef.once('value', function (snapshot) {
+    var smokeCOAlarms = snapshot.child('devices/smoke_co_alarms');
+    window.smokeCOAlarms = smokeCOAlarms;
+    for(var id in smokeCOAlarms.val()) {
+      var alarm = smokeCOAlarms.child(id);
       listenForSmokeAlarms(alarm);
       listenForCOAlarms(alarm);
       listenForBatteryAlarms(alarm);
-      isFirstRun = false;
     }
-  }
-
-});
+  });
+}

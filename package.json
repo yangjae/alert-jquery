@@ -5,6 +5,10 @@
     "express": "latest",
     "express-session": "latest",
     "passport": "latest",
-    "passport-nest": "passport-nest"
+    "passport-nest": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nestlabs/alert-jquery.git"
   }
 }
